@@ -1,0 +1,87 @@
+<script src="tinytest.js"></script>
+<script>
+
+(function() {
+	var libraryStorage = {};
+	
+	function librarySystem(libraryName, dependencies, callback){
+		if (arguments.length > 1){
+			libraryStorage[libraryName] = {
+				dependencies: dependencies,
+				library: callback,
+				firstCall: true
+			};
+		} else {
+			var currentLibrary = libraryStorage[libraryName];
+			if (currentLibrary.firstCall === true){
+				currentLibrary.dependencies = currentLibrary.dependencies.map(function(dependency){
+					return librarySystem(dependency);
+				});
+				
+				currentLibrary.libary = currentLibrary.library.apply(this, currentLibrary.dependencies);
+				currentLibrary.firstCall = false;
+			}
+			
+			return currentLibrary.libary;
+			
+		}
+	}
+	window.librarySystem = librarySystem;
+})();
+
+tests({
+  'It should be able to create libraries with no dependencies': function() {
+	librarySystem('noDependencies', [], function(){
+		return 'This library has no dependencies';
+	});
+	var noDependencies = librarySystem('noDependencies');
+	eq(noDependencies, 'This library has no dependencies');
+  },
+  'It should be able to create libraries with one dependency': function() {
+	librarySystem('dependency', [], function(){
+		return 'one dependency';
+	});
+	librarySystem('oneDependency', ['dependency'], function(dependency){
+		return 'app with ' + dependency;
+	});
+	var oneDependency = librarySystem('oneDependency');
+	eq(oneDependency, 'app with one dependency');
+  },
+  'It should be able to create libraries with more than one dependencies': function() {
+	librarySystem('dependencyOne', [], function(){
+		return 'dependency One';
+	});
+	librarySystem('dependencyTwo', [], function(){
+		return 'dependency Two';
+	});
+	librarySystem('moreThanOneDependencies', ['dependencyOne', 'dependencyTwo'], function(one, two){
+		return 'dependencies in this app: ' + one + ', ' + two;
+	});
+	var moreThanOneDependencies = librarySystem('moreThanOneDependencies');
+	eq(moreThanOneDependencies, 'dependencies in this app: dependency One, dependency Two');
+  },
+   'It should be able to create libraries out of order': function() {
+	librarySystem('workBlurb', ['name', 'company'], function(name, company) {
+		return name + ' works at ' + company;
+	});
+	librarySystem('name', [], function() {
+		return 'Gordon';
+	});
+	librarySystem('company', [], function() {
+		return 'Watch and Code';
+	});
+	var workBlurb = librarySystem('workBlurb');
+	eq(workBlurb, 'Gordon works at Watch and Code');
+	},
+  'It should only run the callback function for each library once': function() {
+	var timesCallbackHasRun = 0;
+	librarySystem('app', [], function(){
+		timesCallbackHasRun++;
+		return 'app';
+	});
+	librarySystem('app');
+	librarySystem('app');
+	eq(timesCallbackHasRun, 1);
+  }
+});
+</script>
